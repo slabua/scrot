@@ -46,13 +46,14 @@ init_parse_options(int argc, char **argv)
 static void
 scrot_parse_option_array(int argc, char **argv)
 {
-   static char stropts[] = "abcd:e:hmnqw:st:uv+:";
+   static char stropts[] = "abcd:e:hmnqw:srt:uv+:";
    static struct option lopts[] = {
       /* actions */
       {"help", 0, 0, 'h'},                  /* okay */
       {"version", 0, 0, 'v'},               /* okay */
       {"count", 0, 0, 'c'},
       {"select", 0, 0, 's'},
+      {"resize", 0, 0, 'r'},
       {"focused", 0, 0, 'u'},
       {"focussed", 0, 0, 'u'},	/* macquarie dictionary has both spellings */
       {"border", 0, 0, 'b'},
@@ -108,6 +109,9 @@ scrot_parse_option_array(int argc, char **argv)
            break;
         case 's':
            opt.select = 1;
+           break;
+        case 'r':
+           opt.resize = 1;
            break;
         case 'u':
            opt.focused = 1;
@@ -256,6 +260,9 @@ show_usage(void)
            "                            and join them together.\n"
            "  -s, --select              Interactively choose a window or rectangle\n"
            "                            with the mouse.\n"
+           "  -r, --resize              When using -s, resize and move the rectangle selection\n"
+           "                            before accepting it (press Return to accept or Escape\n"
+           "                            to cancel).\n"
            "  -a, --alpha               When selecting a window, create semi-transparent\n"
            "                            screenshot that includes window shadows.\n"
            "  -n, --no-decorations      When selecting a window, don't grab\n"
