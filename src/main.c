@@ -230,8 +230,17 @@ scrot_sel_and_grab_image(void)
     STATE_DONE,
     STATE_CANCELED
   };
+  enum hover {
+    HOVER_OUTSIDE,
+    HOVER_INSIDE,
+    HOVER_NE,
+    HOVER_NW,
+    HOVER_SE,
+    HOVER_SW
+  };
   int rect_is_drawn = 0;
   enum state cur_state = STATE_NO_RECT;
+  enum hover cur_hover = HOVER_OUTSIDE;
   Imlib_Image im = NULL;
   static int xfd = 0;
   static int fdsize = 0;
@@ -330,6 +339,7 @@ scrot_sel_and_grab_image(void)
               rect_y += rect_h;
               rect_h = 0 - rect_h;
             }
+            
             /* draw rectangle */
             if (rect_w > 1 && rect_h > 1) {
               XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
@@ -337,7 +347,6 @@ scrot_sel_and_grab_image(void)
             } else {
               rect_is_drawn = 0;
             }
-            XFlush(disp);
             break;
             
           case STATE_MOVING_RECT:
@@ -367,17 +376,36 @@ scrot_sel_and_grab_image(void)
             break;
           
           case STATE_RECT_DRAWN:
-            if (ev.xmotion.x >= rect_x && ev.xmotion.x < rect_x + rect_w &&
-                ev.xmotion.y >= rect_y && ev.xmotion.y < rect_y + rect_h) {              
+            if (!rect_is_drawn) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+              cur_hover = HOVER_OUTSIDE;
+              break;
+            }
+            if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {   
               XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
+              cur_hover = HOVER_INSIDE;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y - 10, 10, 10)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+              cur_hover = HOVER_NW;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y - 10, 10, 10)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+              cur_hover = HOVER_NE;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y + rect_h, 10, 10)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+              cur_hover = HOVER_SW;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y + rect_h, 10, 10)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+              cur_hover = HOVER_SE;
             } else {
               XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+              cur_hover = HOVER_OUTSIDE;
             }
             break;
           
           default:
             break;
           }
+          XFlush(disp);
           break;
         case ButtonPress:
           rx = ev.xbutton.x;
@@ -388,12 +416,55 @@ scrot_sel_and_grab_image(void)
             break;
             
           case STATE_RECT_DRAWN:
-            if (overlaps(rx, ry, rect_x, rect_y, rect_w, rect_h)) {
+            switch (cur_hover) {
+            case HOVER_INSIDE:
               orig_rect_x = rect_x;
               orig_rect_y = rect_y;
               cur_state = STATE_MOVING_RECT;
-            } else {
+              break;
+              
+            case HOVER_OUTSIDE:
               cur_state = STATE_DRAWING_RECT;
+              break;
+              
+            case HOVER_SE:
+              /* make the original point NW */
+              rx = rect_x;
+              ry = rect_y;
+              
+              /* back to draw mode */
+              cur_state = STATE_DRAWING_RECT;
+              break;
+            
+            case HOVER_SW:
+              /* make the original point NE */
+              rx = rect_x + rect_w;
+              ry = rect_y;
+              
+              /* back to draw mode */
+              cur_state = STATE_DRAWING_RECT;
+              break;
+              
+            case HOVER_NE:
+              /* make the original point SW */
+              rx = rect_x;
+              ry = rect_y + rect_h;
+              
+              /* back to draw mode */
+              cur_state = STATE_DRAWING_RECT;
+              break;
+              
+            case HOVER_NW:
+              /* make the original point SE */
+              rx = rect_x + rect_w;
+              ry = rect_y + rect_h;
+              
+              /* back to draw mode */
+              cur_state = STATE_DRAWING_RECT;
+              break;
+            
+            default:
+              break;
             }
             break;
             
