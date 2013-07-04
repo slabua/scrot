@@ -297,7 +297,10 @@ show_usage(void)
            "          and moves it to your images directory.\n" "\n"
            "This program is free software see the file COPYING for licensing info.\n"
            "Copyright Tom Gilbert 2000\n"
-           "Email bugs to <scrot_sucks@linuxbrit.co.uk>\n");
+           "Email bugs to <scrot_sucks@linuxbrit.co.uk>\n"
+           "\n"
+           "This is a non-official version of scrot.\n"
+           "Email -r option bugs to Philippe Proulx <eeppeliteloop@gmail.com>.\n");
    exit(0);
 }
 
