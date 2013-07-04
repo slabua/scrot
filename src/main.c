@@ -537,11 +537,15 @@ scrot_sel_and_grab_image(void)
         
         /* move rectangle if drawn */
         if (cur_state == STATE_RECT_DRAWN && rect_is_drawn) {
+          if (ksym == XK_Left || ksym == XK_Right ||
+              ksym == XK_Down || ksym == XK_Up) {
+            cur_hover = HOVER_OUTSIDE;
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+          }
           switch (ksym) {
           case XK_Left:
             try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
               rect_w, rect_h, -10, 0);
-            cur_hover = HOVER_OUTSIDE;
             break;
             
           case XK_Right:
