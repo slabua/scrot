@@ -230,6 +230,7 @@ scrot_sel_and_grab_image(void)
     STATE_DONE,
     STATE_CANCELED
   };
+  int rect_is_drawn = 0;
   enum state cur_state = STATE_NO_RECT;
   Imlib_Image im = NULL;
   static int xfd = 0;
@@ -301,7 +302,7 @@ scrot_sel_and_grab_image(void)
         case MotionNotify:
           switch (cur_state) {
           case STATE_DRAWING_RECT:
-            if (rect_w) {
+            if (rect_is_drawn) {
               /* re-draw the last rect to clear it */
               XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
             }
@@ -330,7 +331,12 @@ scrot_sel_and_grab_image(void)
               rect_h = 0 - rect_h;
             }
             /* draw rectangle */
-            XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+            if (rect_w > 5 && rect_h > 5) {
+              XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+              rect_is_drawn = 1;
+            } else {
+              rect_is_drawn = 0;
+            }
             XFlush(disp);
             break;
             
@@ -455,7 +461,7 @@ scrot_sel_and_grab_image(void)
         && ((errno == ENOMEM) || (errno == EINVAL) || (errno == EBADF)))
       gib_eprintf("Connection to X display lost");
   }
-  if (rect_w) {
+  if (rect_is_drawn) {
     XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
     XFlush(disp);
   }
@@ -466,7 +472,7 @@ scrot_sel_and_grab_image(void)
   XSync(disp, True);
 
 
-  if (cur_state == STATE_DONE) {
+  if (cur_state == STATE_DONE && rect_is_drawn) {
     scrot_do_delay();
 
     Window client_window = None;
