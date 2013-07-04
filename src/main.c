@@ -333,246 +333,246 @@ scrot_sel_and_grab_image(void)
         XPending(disp)) {
       XNextEvent(disp, &ev);
       switch (ev.type) {
-        case MotionNotify:
-          switch (cur_state) {
-          case STATE_DRAWING_RECT:
-            if (rect_is_drawn) {
-              /* re-draw the last rect to clear it */
-              XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-            }
-
-            rect_x = rx;
-            rect_y = ry;
-            rect_w = ev.xmotion.x - rect_x;
-            rect_h = ev.xmotion.y - rect_y;
-
-            /* Change the cursor to show we're selecting a region */
-            if (rect_w < 0 && rect_h < 0)
-              XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
-            else if (rect_w < 0 && rect_h > 0)
-              XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
-            else if (rect_w > 0 && rect_h < 0)
-              XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
-            else if (rect_w > 0 && rect_h > 0)
-              XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
-
-            if (rect_w < 0) {
-              rect_x += rect_w;
-              rect_w = 0 - rect_w;
-            }
-            if (rect_h < 0) {
-              rect_y += rect_h;
-              rect_h = 0 - rect_h;
-            }
-            
-            /* draw rectangle */
-            if (rect_w > 1 && rect_h > 1) {
-              XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-              rect_is_drawn = 1;
-            } else {
-              rect_is_drawn = 0;
-            }
-            break;
-            
-          case STATE_MOVING_RECT:
-            if (!rect_w) {
-              break;
-            }
-            
-            /* remove old rectangle */
+      case MotionNotify:
+        switch (cur_state) {
+        case STATE_DRAWING_RECT:
+          if (rect_is_drawn) {
+            /* re-draw the last rect to clear it */
             XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-            
-            /* new parameters */
-            diff_x = ev.xmotion.x - rx;
-            diff_y = ev.xmotion.y - ry;
-            new_rect_x = orig_rect_x + diff_x;
-            new_rect_y = orig_rect_y + diff_y;
-            if (!rect_out_of_screen(&root_attr, new_rect_x, new_rect_y,
-                rect_w, rect_h)) {
-              /* update rectangle */
-              rect_x = new_rect_x;
-              rect_y = new_rect_y;
-            }
-            XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-            break;
-          
-          case STATE_RECT_DRAWN:
-            /* update hover region */
-            if (!rect_is_drawn) {
-              XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
-              cur_hover = HOVER_OUTSIDE;
-              break;
-            }
-            if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {   
-              XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
-              cur_hover = HOVER_INSIDE;
-            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y - 10, 10, 10)) {
-              XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
-              cur_hover = HOVER_NW;
-            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y - 10, 10, 10)) {
-              XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
-              cur_hover = HOVER_NE;
-            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y + rect_h, 10, 10)) {
-              XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
-              cur_hover = HOVER_SW;
-            } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y + rect_h, 10, 10)) {
-              XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
-              cur_hover = HOVER_SE;
-            } else {
-              XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
-              cur_hover = HOVER_OUTSIDE;
-            }
-            break;
-          
-          default:
-            break;
           }
-          XFlush(disp);
+
+          rect_x = rx;
+          rect_y = ry;
+          rect_w = ev.xmotion.x - rect_x;
+          rect_h = ev.xmotion.y - rect_y;
+
+          /* Change the cursor to show we're selecting a region */
+          if (rect_w < 0 && rect_h < 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+          else if (rect_w < 0 && rect_h > 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+          else if (rect_w > 0 && rect_h < 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+          else if (rect_w > 0 && rect_h > 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+
+          if (rect_w < 0) {
+            rect_x += rect_w;
+            rect_w = 0 - rect_w;
+          }
+          if (rect_h < 0) {
+            rect_y += rect_h;
+            rect_h = 0 - rect_h;
+          }
+          
+          /* draw rectangle */
+          if (rect_w > 1 && rect_h > 1) {
+            XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+            rect_is_drawn = 1;
+          } else {
+            rect_is_drawn = 0;
+          }
           break;
           
-        case ButtonPress:
-          rx = ev.xbutton.x;
-          ry = ev.xbutton.y;
-          switch (cur_state) {
-          case STATE_NO_RECT:
+        case STATE_MOVING_RECT:
+          if (!rect_w) {
+            break;
+          }
+          
+          /* remove old rectangle */
+          XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+          
+          /* new parameters */
+          diff_x = ev.xmotion.x - rx;
+          diff_y = ev.xmotion.y - ry;
+          new_rect_x = orig_rect_x + diff_x;
+          new_rect_y = orig_rect_y + diff_y;
+          if (!rect_out_of_screen(&root_attr, new_rect_x, new_rect_y,
+              rect_w, rect_h)) {
+            /* update rectangle */
+            rect_x = new_rect_x;
+            rect_y = new_rect_y;
+          }
+          XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+          break;
+        
+        case STATE_RECT_DRAWN:
+          /* update hover region */
+          if (!rect_is_drawn) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          }
+          if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {   
+            XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
+            cur_hover = HOVER_INSIDE;
+          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y - 10, 10, 10)) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+            cur_hover = HOVER_NW;
+          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y - 10, 10, 10)) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+            cur_hover = HOVER_NE;
+          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y + rect_h, 10, 10)) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+            cur_hover = HOVER_SW;
+          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y + rect_h, 10, 10)) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+            cur_hover = HOVER_SE;
+          } else {
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+            cur_hover = HOVER_OUTSIDE;
+          }
+          break;
+        
+        default:
+          break;
+        }
+        XFlush(disp);
+        break;
+        
+      case ButtonPress:
+        rx = ev.xbutton.x;
+        ry = ev.xbutton.y;
+        switch (cur_state) {
+        case STATE_NO_RECT:
+          cur_state = STATE_DRAWING_RECT;
+          break;
+          
+        case STATE_RECT_DRAWN:
+          switch (cur_hover) {
+          case HOVER_INSIDE:
+            orig_rect_x = rect_x;
+            orig_rect_y = rect_y;
+            cur_state = STATE_MOVING_RECT;
+            break;
+            
+          case HOVER_OUTSIDE:
             cur_state = STATE_DRAWING_RECT;
             break;
             
-          case STATE_RECT_DRAWN:
-            switch (cur_hover) {
-            case HOVER_INSIDE:
-              orig_rect_x = rect_x;
-              orig_rect_y = rect_y;
-              cur_state = STATE_MOVING_RECT;
-              break;
-              
-            case HOVER_OUTSIDE:
-              cur_state = STATE_DRAWING_RECT;
-              break;
-              
-            case HOVER_SE:
-              /* make the original point NW */
-              rx = rect_x;
-              ry = rect_y;
-              
-              /* back to draw mode */
-              cur_state = STATE_DRAWING_RECT;
-              break;
+          case HOVER_SE:
+            /* make the original point NW */
+            rx = rect_x;
+            ry = rect_y;
             
-            case HOVER_SW:
-              /* make the original point NE */
-              rx = rect_x + rect_w;
-              ry = rect_y;
-              
-              /* back to draw mode */
-              cur_state = STATE_DRAWING_RECT;
-              break;
-              
-            case HOVER_NE:
-              /* make the original point SW */
-              rx = rect_x;
-              ry = rect_y + rect_h;
-              
-              /* back to draw mode */
-              cur_state = STATE_DRAWING_RECT;
-              break;
-              
-            case HOVER_NW:
-              /* make the original point SE */
-              rx = rect_x + rect_w;
-              ry = rect_y + rect_h;
-              
-              /* back to draw mode */
-              cur_state = STATE_DRAWING_RECT;
-              break;
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+          
+          case HOVER_SW:
+            /* make the original point NE */
+            rx = rect_x + rect_w;
+            ry = rect_y;
             
-            default:
-              break;
-            }
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
             break;
             
+          case HOVER_NE:
+            /* make the original point SW */
+            rx = rect_x;
+            ry = rect_y + rect_h;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+            
+          case HOVER_NW:
+            /* make the original point SE */
+            rx = rect_x + rect_w;
+            ry = rect_y + rect_h;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+          
           default:
             break;
-          }
-          target =
-            scrot_get_window(disp, ev.xbutton.subwindow, ev.xbutton.x,
-                             ev.xbutton.y);
-          if (target == None)
-            target = root;
-          break;
-          
-        case ButtonRelease:
-          if (!opt.resize) {
-            if (cur_state == STATE_DRAWING_RECT) {
-              cur_state = STATE_DONE;
-            }
-            break;
-          }
-          switch (cur_state) {
-          case STATE_DRAWING_RECT:
-          case STATE_MOVING_RECT:
-            cur_state = STATE_RECT_DRAWN;
-            break;
-            
-          default:
-            break;
-          }
-          break;
-          
-        case KeyPress:
-          XLookupString(&ev.xkey, buf, sizeof buf, &ksym, 0);
-          if(IsKeypadKey(ksym))
-             if(ksym == XK_KP_Enter)
-               ksym = XK_Return;
-          switch (ksym) {
-          case XK_Escape:
-            cur_state = STATE_CANCELED;
-            break;
-          
-          case XK_Return:
-            if (cur_state == STATE_RECT_DRAWN) {
-              cur_state = STATE_DONE;
-            } else {
-              cur_state = STATE_CANCELED;
-            }
-            break;
-          }
-          
-          /* move rectangle if drawn */
-          if (cur_state == STATE_RECT_DRAWN && rect_is_drawn) {
-            switch (ksym) {
-            case XK_Left:
-              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-                rect_w, rect_h, -10, 0);
-              cur_hover = HOVER_OUTSIDE;
-              break;
-              
-            case XK_Right:
-              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-                rect_w, rect_h, +10, 0);
-              cur_hover = HOVER_OUTSIDE;
-              break;
-            
-            case XK_Up:
-              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-                rect_w, rect_h, 0, -10);
-              cur_hover = HOVER_OUTSIDE;
-              break;
-            
-            case XK_Down:
-              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-                rect_w, rect_h, 0, +10);
-              cur_hover = HOVER_OUTSIDE;
-              break;
-              
-            default:
-              break;
-            }
           }
           break;
           
         default:
           break;
+        }
+        target =
+          scrot_get_window(disp, ev.xbutton.subwindow, ev.xbutton.x,
+                           ev.xbutton.y);
+        if (target == None)
+          target = root;
+        break;
+        
+      case ButtonRelease:
+        if (!opt.resize) {
+          if (cur_state == STATE_DRAWING_RECT) {
+            cur_state = STATE_DONE;
+          }
+          break;
+        }
+        switch (cur_state) {
+        case STATE_DRAWING_RECT:
+        case STATE_MOVING_RECT:
+          cur_state = STATE_RECT_DRAWN;
+          break;
+          
+        default:
+          break;
+        }
+        break;
+        
+      case KeyPress:
+        XLookupString(&ev.xkey, buf, sizeof buf, &ksym, 0);
+        if(IsKeypadKey(ksym))
+           if(ksym == XK_KP_Enter)
+             ksym = XK_Return;
+        switch (ksym) {
+        case XK_Escape:
+          cur_state = STATE_CANCELED;
+          break;
+        
+        case XK_Return:
+          if (cur_state == STATE_RECT_DRAWN) {
+            cur_state = STATE_DONE;
+          } else {
+            cur_state = STATE_CANCELED;
+          }
+          break;
+        }
+        
+        /* move rectangle if drawn */
+        if (cur_state == STATE_RECT_DRAWN && rect_is_drawn) {
+          switch (ksym) {
+          case XK_Left:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, -10, 0);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+            
+          case XK_Right:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, +10, 0);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          
+          case XK_Up:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, 0, -10);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          
+          case XK_Down:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, 0, +10);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+            
+          default:
+            break;
+          }
+        }
+        break;
+        
+      default:
+        break;
       }
     }
     if (cur_state == STATE_DONE || cur_state == STATE_CANCELED)
