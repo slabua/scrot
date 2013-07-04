@@ -374,11 +374,7 @@ scrot_sel_and_grab_image(void)
           }
           break;
           
-        case STATE_MOVING_RECT:
-          if (!rect_w) {
-            break;
-          }
-          
+        case STATE_MOVING_RECT:          
           /* remove old rectangle */
           XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
           
@@ -530,7 +526,8 @@ scrot_sel_and_grab_image(void)
           break;
         
         case XK_Return:
-          if (cur_state == STATE_RECT_DRAWN) {
+          /* terminate as soon as we have a drawn rectangle */
+          if (rect_is_drawn) {
             cur_state = STATE_DONE;
           } else {
             cur_state = STATE_CANCELED;
