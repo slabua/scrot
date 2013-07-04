@@ -219,6 +219,31 @@ int rect_y, int rect_w, int rect_h) {
     py >= rect_y && py < rect_y + rect_h;
 }
 
+static int rect_out_of_screen(XWindowAttributes* root_attr,
+int rect_x, int rect_y, int rect_w, int rect_h) {
+  return rect_x + rect_w >= root_attr->width ||
+    rect_y + rect_h >= root_attr->height ||
+    rect_x <= 0 || rect_y <= 0;
+}
+
+static void try_move_rect(GC* gc, XWindowAttributes* root_attr,
+int* rect_x, int* rect_y, int rect_w, int rect_h, int dx, int dy) {
+  int new_rect_x = *rect_x + dx;
+  int new_rect_y = *rect_y + dy;
+  
+  /* try */
+  if (rect_out_of_screen(root_attr, new_rect_x, new_rect_y, rect_w, rect_h)) {
+    return;
+  }
+  
+  /* move */
+  XDrawRectangle(disp, root, *gc, *rect_x, *rect_y, rect_w, rect_h);
+  *rect_x = new_rect_x;
+  *rect_y = new_rect_y;
+  XDrawRectangle(disp, root, *gc, *rect_x, *rect_y, rect_w, rect_h);
+  XFlush(disp);
+}
+
 Imlib_Image
 scrot_sel_and_grab_image(void)
 {
@@ -362,12 +387,8 @@ scrot_sel_and_grab_image(void)
             diff_y = ev.xmotion.y - ry;
             new_rect_x = orig_rect_x + diff_x;
             new_rect_y = orig_rect_y + diff_y;
-            if (new_rect_x + rect_w >= root_attr.width ||
-                new_rect_y + rect_h >= root_attr.height ||
-                new_rect_x <= 0 ||
-                new_rect_y <= 0) {
-              /* rectangle is out of the screen */
-            } else {
+            if (!rect_out_of_screen(&root_attr, new_rect_x, new_rect_y,
+                rect_w, rect_h)) {
               /* update rectangle */
               rect_x = new_rect_x;
               rect_y = new_rect_y;
@@ -376,6 +397,7 @@ scrot_sel_and_grab_image(void)
             break;
           
           case STATE_RECT_DRAWN:
+            /* update hover region */
             if (!rect_is_drawn) {
               XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
               cur_hover = HOVER_OUTSIDE;
@@ -407,6 +429,7 @@ scrot_sel_and_grab_image(void)
           }
           XFlush(disp);
           break;
+          
         case ButtonPress:
           rx = ev.xbutton.x;
           ry = ev.xbutton.y;
@@ -477,6 +500,7 @@ scrot_sel_and_grab_image(void)
           if (target == None)
             target = root;
           break;
+          
         case ButtonRelease:
           if (!opt.resize) {
             if (cur_state == STATE_DRAWING_RECT) {
@@ -494,6 +518,7 @@ scrot_sel_and_grab_image(void)
             break;
           }
           break;
+          
         case KeyPress:
           XLookupString(&ev.xkey, buf, sizeof buf, &ksym, 0);
           if(IsKeypadKey(ksym))
@@ -512,10 +537,40 @@ scrot_sel_and_grab_image(void)
             }
             break;
           }
+          
+          /* move rectangle if drawn */
+          if (cur_state == STATE_RECT_DRAWN && rect_is_drawn) {
+            switch (ksym) {
+            case XK_Left:
+              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+                rect_w, rect_h, -10, 0);
+              cur_hover = HOVER_OUTSIDE;
+              break;
+              
+            case XK_Right:
+              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+                rect_w, rect_h, +10, 0);
+              cur_hover = HOVER_OUTSIDE;
+              break;
+            
+            case XK_Up:
+              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+                rect_w, rect_h, 0, -10);
+              cur_hover = HOVER_OUTSIDE;
+              break;
+            
+            case XK_Down:
+              try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+                rect_w, rect_h, 0, +10);
+              cur_hover = HOVER_OUTSIDE;
+              break;
+              
+            default:
+              break;
+            }
+          }
           break;
-        case KeyRelease:
-          /* ignore */
-          break;
+          
         default:
           break;
       }
