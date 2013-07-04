@@ -331,7 +331,7 @@ scrot_sel_and_grab_image(void)
               rect_h = 0 - rect_h;
             }
             /* draw rectangle */
-            if (rect_w > 5 && rect_h > 5) {
+            if (rect_w > 1 && rect_h > 1) {
               XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
               rect_is_drawn = 1;
             } else {
