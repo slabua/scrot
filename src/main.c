@@ -27,6 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "scrot.h"
 #include "options.h"
 
+#define RESIZE_HANDLE_SZ_PX 10
+#define KEYS_MOVE_RECT_STEP_PX 10
+
 int
 main(int argc,
      char **argv)
@@ -409,28 +412,34 @@ scrot_sel_and_grab_image(void)
           
           /* try corners first, then default to inside, then outside;
              only allow to resize if rectangle si large enough to do so */
-          if (rect_w > 25 && rect_h > 25) {
-						if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, 10, 10)) {
-							XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
-							cur_hover = HOVER_NW;
-							break;
-						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
-								rect_x + rect_w - 10, rect_y, 10, 10)) {
-							XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
-							cur_hover = HOVER_NE;
-							break;
-						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
-								rect_x, rect_y + rect_h - 10, 10, 10)) {
-							XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
-							cur_hover = HOVER_SW;
-							break;
-						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
-								rect_x + rect_w - 10, rect_y + rect_h - 10, 10, 10)) {
-							XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
-							cur_hover = HOVER_SE;
-							break;
-						}
-					}
+          if (rect_w > (RESIZE_HANDLE_SZ_PX * 2 + 5) &&
+            rect_h > (RESIZE_HANDLE_SZ_PX * 2 + 5)) {
+            if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+              cur_hover = HOVER_NW;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x + rect_w - RESIZE_HANDLE_SZ_PX,
+                rect_y, RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+              cur_hover = HOVER_NE;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x, rect_y + rect_h - RESIZE_HANDLE_SZ_PX,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+              cur_hover = HOVER_SW;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x + rect_w - RESIZE_HANDLE_SZ_PX,
+                rect_y + rect_h - RESIZE_HANDLE_SZ_PX,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+              cur_hover = HOVER_SE;
+              break;
+            }
+          }
 					if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {
             XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
             cur_hover = HOVER_INSIDE;
@@ -565,24 +574,24 @@ scrot_sel_and_grab_image(void)
           switch (ksym) {
           case XK_Left:
             try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-              rect_w, rect_h, -10, 0);
+              rect_w, rect_h, -KEYS_MOVE_RECT_STEP_PX, 0);
             break;
             
           case XK_Right:
             try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-              rect_w, rect_h, +10, 0);
+              rect_w, rect_h, +KEYS_MOVE_RECT_STEP_PX, 0);
             cur_hover = HOVER_OUTSIDE;
             break;
           
           case XK_Up:
             try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-              rect_w, rect_h, 0, -10);
+              rect_w, rect_h, 0, -KEYS_MOVE_RECT_STEP_PX);
             cur_hover = HOVER_OUTSIDE;
             break;
           
           case XK_Down:
             try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
-              rect_w, rect_h, 0, +10);
+              rect_w, rect_h, 0, +KEYS_MOVE_RECT_STEP_PX);
             cur_hover = HOVER_OUTSIDE;
             break;
             
