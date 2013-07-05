@@ -406,21 +406,34 @@ scrot_sel_and_grab_image(void)
             cur_hover = HOVER_OUTSIDE;
             break;
           }
-          if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {   
+          
+          /* try corners first, then default to inside, then outside;
+             only allow to resize if rectangle si large enough to do so */
+          if (rect_w > 25 && rect_h > 25) {
+						if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, 10, 10)) {
+							XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+							cur_hover = HOVER_NW;
+							break;
+						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+								rect_x + rect_w - 10, rect_y, 10, 10)) {
+							XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+							cur_hover = HOVER_NE;
+							break;
+						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+								rect_x, rect_y + rect_h - 10, 10, 10)) {
+							XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+							cur_hover = HOVER_SW;
+							break;
+						} else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+								rect_x + rect_w - 10, rect_y + rect_h - 10, 10, 10)) {
+							XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+							cur_hover = HOVER_SE;
+							break;
+						}
+					}
+					if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {
             XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
             cur_hover = HOVER_INSIDE;
-          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y - 10, 10, 10)) {
-            XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
-            cur_hover = HOVER_NW;
-          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y - 10, 10, 10)) {
-            XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
-            cur_hover = HOVER_NE;
-          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x - 10, rect_y + rect_h, 10, 10)) {
-            XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
-            cur_hover = HOVER_SW;
-          } else if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x + rect_w, rect_y + rect_h, 10, 10)) {
-            XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
-            cur_hover = HOVER_SE;
           } else {
             XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
             cur_hover = HOVER_OUTSIDE;
