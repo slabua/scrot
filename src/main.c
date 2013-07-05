@@ -232,8 +232,15 @@ int* rect_x, int* rect_y, int rect_w, int rect_h, int dx, int dy) {
   int new_rect_y = *rect_y + dy;
   
   /* try */
-  if (rect_out_of_screen(root_attr, new_rect_x, new_rect_y, rect_w, rect_h)) {
-    return;
+  if (new_rect_x < 0) {
+    new_rect_x = 0;
+  } else if (new_rect_x + rect_w >= root_attr->width) {
+    new_rect_x = root_attr->width - 1 - rect_w;
+  }
+  if (new_rect_y < 0) {
+    new_rect_y = 0;
+  } else if (new_rect_y + rect_h >= root_attr->height) {
+    new_rect_y = root_attr->height - 1 - rect_h;
   }
   
   /* move */
