@@ -81,11 +81,8 @@ INCLUDES = -I/usr/X11R6/include $(X_CFLAGS) -I$(prefix)/include -I$(includedir) 
 
 man_MANS = scrot.1
 
-docs_DATA = README AUTHORS ChangeLog TODO
-docsdir = $(prefix)/doc/scrot
 
-EXTRA_DIST =  scrot.spec scrot.1 $(docs_DATA)
-
+EXTRA_DIST =  scrot.spec scrot.1 
 
 SUBDIRS = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -193,25 +190,6 @@ install-man: $(MANS)
 uninstall-man:
 	@$(NORMAL_UNINSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1
-
-install-docsDATA: $(docs_DATA)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(docsdir)
-	@list='$(docs_DATA)'; for p in $$list; do \
-	  if test -f $(srcdir)/$$p; then \
-	    echo " $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(docsdir)/$$p"; \
-	    $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(docsdir)/$$p; \
-	  else if test -f $$p; then \
-	    echo " $(INSTALL_DATA) $$p $(DESTDIR)$(docsdir)/$$p"; \
-	    $(INSTALL_DATA) $$p $(DESTDIR)$(docsdir)/$$p; \
-	  fi; fi; \
-	done
-
-uninstall-docsDATA:
-	@$(NORMAL_UNINSTALL)
-	list='$(docs_DATA)'; for p in $$list; do \
-	  rm -f $(DESTDIR)$(docsdir)/$$p; \
-	done
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
