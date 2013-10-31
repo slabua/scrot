@@ -374,6 +374,10 @@ scrot_sel_and_grab_image(void)
         rh = 0 - rh;
       }
     } else {
+      Window child;
+      XWindowAttributes attr;
+      int stat;
+
       /* else it's a window click */
       if (!scrot_get_geometry(target, &client_window, &rx, &ry, &rw, &rh))
         return NULL;

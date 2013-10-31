@@ -1,4 +1,3 @@
-/* vim: set expandtab ts=2 sw=2: */
 /* options.c
 
 Copyright (C) 1999,2000 Tom Gilbert.
@@ -247,11 +246,12 @@ show_usage(void)
            "  Where FILE is the target file for the screenshot.\n"
            "  If FILE is not specified, a date-stamped file will be dropped in the\n"
            "  current directory.\n" "  See man " PACKAGE " for more details\n"
-           "  -h, --help                Display this help and exit.\n"
-           "  -v, --version             Output version information and exit.\n"
-           "  -c, --count               Show a countdown before taking the shot.\n"
-           "  -d, --delay NUM           Wait NUM seconds before taking a shot.\n"
-           "  -e, --exec APP            Run APP on the resulting screenshot.\n"
+           "  -h, --help                display this help and exit\n"
+           "  -v, --version             output version information and exit\n"
+           "  -b, --border              When selecting a window, grab wm border too\n"
+           "  -c, --count               show a countdown before taking the shot\n"
+           "  -d, --delay NUM           wait NUM seconds before taking a shot\n"
+           "  -e, --exec APP            run APP on the resulting screenshot\n"
            "  -q, --quality NUM         Image quality (1-100) high value means\n"
            "                            high size, low compression. Default: 75.\n"
            "                            For lossless compression formats, like png,\n"
@@ -298,4 +298,3 @@ show_usage(void)
            "Email bugs to <scrot_sucks@linuxbrit.co.uk>\n");
    exit(0);
 }
-

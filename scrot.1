@@ -1,6 +1,6 @@
 .TH scrot 1 "Oct 26, 2000"
 .SH NAME
-scrot - capture a screenshot using imlib2
+scrot - Screen capture using imlib2
 .SH SYNOPSIS
 scrot [options] [file]
 .SH DESCRIPTION
@@ -20,6 +20,9 @@ display help output and exit.
 .TP 5
 .B -v, --version
 output version information and exit.
+.TP 5
+.B -b, --border
+When selecting a window, grab wm border too. It's enabled by default with -s. 
 .TP 5
 .B -c, --count
 Display a countdown when used with delay.
@@ -46,9 +49,6 @@ window shadows.
 .TP 5
 .B -n, --no-decorations, --no-border
 When selecting a window, don't grab window decorations (border, titlebar, etc).
-.TP 5
-.B -b, --border
-When selecting a window, grab wm border too. It's enabled by default with -s. 
 .TP 5
 .B -u, --focused
 Use the currently focused window.
