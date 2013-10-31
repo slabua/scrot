@@ -32,6 +32,7 @@ struct __scrotoptions
    int delay;
    int countdown;
    int select;
+   int resize;
    int focused;
    int window;
    int quality;

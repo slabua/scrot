@@ -1,3 +1,4 @@
+/* vim: set expandtab ts=2 sw=2: */
 /* options.c
 
 Copyright (C) 1999,2000 Tom Gilbert.
@@ -45,13 +46,14 @@ init_parse_options(int argc, char **argv)
 static void
 scrot_parse_option_array(int argc, char **argv)
 {
-   static char stropts[] = "abcd:e:hmnqw:st:uv+:z";
+   static char stropts[] = "abcd:e:hmnqw:srt:uv+:z";
    static struct option lopts[] = {
       /* actions */
       {"help", 0, 0, 'h'},                  /* okay */
       {"version", 0, 0, 'v'},               /* okay */
       {"count", 0, 0, 'c'},
       {"select", 0, 0, 's'},
+      {"resize", 0, 0, 'r'},
       {"focused", 0, 0, 'u'},
       {"focussed", 0, 0, 'u'},	/* macquarie dictionary has both spellings */
       {"border", 0, 0, 'b'},
@@ -108,6 +110,9 @@ scrot_parse_option_array(int argc, char **argv)
            break;
         case 's':
            opt.select = 1;
+           break;
+        case 'r':
+           opt.resize = 1;
            break;
         case 'u':
            opt.focused = 1;
@@ -246,12 +251,12 @@ show_usage(void)
            "  Where FILE is the target file for the screenshot.\n"
            "  If FILE is not specified, a date-stamped file will be dropped in the\n"
            "  current directory.\n" "  See man " PACKAGE " for more details\n"
-           "  -h, --help                display this help and exit\n"
-           "  -v, --version             output version information and exit\n"
+           "  -h, --help                Display this help and exit.\n"
+           "  -v, --version             Output version information and exit.\n"
            "  -b, --border              When selecting a window, grab wm border too\n"
-           "  -c, --count               show a countdown before taking the shot\n"
-           "  -d, --delay NUM           wait NUM seconds before taking a shot\n"
-           "  -e, --exec APP            run APP on the resulting screenshot\n"
+           "  -c, --count               Show a countdown before taking the shot.\n"
+           "  -d, --delay NUM           Wait NUM seconds before taking a shot.\n"
+           "  -e, --exec APP            Run APP on the resulting screenshot.\n"
            "  -q, --quality NUM         Image quality (1-100) high value means\n"
            "                            high size, low compression. Default: 75.\n"
            "                            For lossless compression formats, like png,\n"
@@ -260,6 +265,9 @@ show_usage(void)
            "                            and join them together.\n"
            "  -s, --select              Interactively choose a window or rectangle\n"
            "                            with the mouse.\n"
+           "  -r, --resize              When using -s, resize and move the rectangle selection\n"
+           "                            before accepting it (press Return to accept, Escape\n"
+           "                            to cancel, Up/Right/Down/Left to move the selection).\n"
            "  -a, --alpha               When selecting a window, create semi-transparent\n"
            "                            screenshot that includes window shadows.\n"
            "  -n, --no-decorations      When selecting a window, don't grab\n"
@@ -295,6 +303,13 @@ show_usage(void)
            "          and moves it to your images directory.\n" "\n"
            "This program is free software see the file COPYING for licensing info.\n"
            "Copyright Tom Gilbert 2000\n"
-           "Email bugs to <scrot_sucks@linuxbrit.co.uk>\n");
+           "Email bugs to <scrot_sucks@linuxbrit.co.uk>\n"
+           "\n"
+           "This is a non-official version of scrot.\n"
+           "Email -r option bugs to Philippe Proulx <eeppeliteloop@gmail.com>.\n"
+           "\n"
+           "This version of scrot is a merge of various features I found online.\n"
+           "For informations about the repository please refer to https://github.com/slabua/scrot.\n"
+           "Salvatore La Bua <slabua@gmail.com>.\n");
    exit(0);
 }

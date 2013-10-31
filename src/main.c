@@ -27,6 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "scrot.h"
 #include "options.h"
 
+#define RESIZE_HANDLE_SZ_PX 10
+#define KEYS_MOVE_RECT_STEP_PX 10
+
 int
 main(int argc,
      char **argv)
@@ -213,21 +216,93 @@ scrot_grab_window(void)
   return scrot_grab_identified_window(target);
 }
 
+static int overlaps(int px, int py, int rect_x,
+int rect_y, int rect_w, int rect_h) {
+  return px >= rect_x && px < rect_x + rect_w &&
+    py >= rect_y && py < rect_y + rect_h;
+}
+
+static int rect_out_of_screen(XWindowAttributes* root_attr,
+int rect_x, int rect_y, int rect_w, int rect_h) {
+  return rect_x + rect_w >= root_attr->width ||
+    rect_y + rect_h >= root_attr->height ||
+    rect_x <= 0 || rect_y <= 0;
+}
+
+static void try_move_rect(GC* gc, XWindowAttributes* root_attr,
+int* rect_x, int* rect_y, int rect_w, int rect_h, int dx, int dy) {
+  int new_rect_x = *rect_x + dx;
+  int new_rect_y = *rect_y + dy;
+  
+  /* try */
+  if (new_rect_x < 0) {
+    new_rect_x = 0;
+  } else if (new_rect_x + rect_w >= root_attr->width) {
+    new_rect_x = root_attr->width - 1 - rect_w;
+  }
+  if (new_rect_y < 0) {
+    new_rect_y = 0;
+  } else if (new_rect_y + rect_h >= root_attr->height) {
+    new_rect_y = root_attr->height - 1 - rect_h;
+  }
+  
+  /* move */
+  XDrawRectangle(disp, root, *gc, *rect_x, *rect_y, rect_w, rect_h);
+  *rect_x = new_rect_x;
+  *rect_y = new_rect_y;
+  XDrawRectangle(disp, root, *gc, *rect_x, *rect_y, rect_w, rect_h);
+  XFlush(disp);
+}
+
 Imlib_Image
 scrot_sel_and_grab_image(void)
 {
+  enum state {
+    STATE_NO_RECT,
+    STATE_DRAWING_RECT,
+    STATE_MOVING_RECT,
+    STATE_RECT_DRAWN,
+    STATE_DONE,
+    STATE_CANCELED
+  };
+  enum hover {
+    HOVER_OUTSIDE,
+    HOVER_INSIDE,
+    HOVER_NE,
+    HOVER_NW,
+    HOVER_SE,
+    HOVER_SW
+  };
+  int rect_is_drawn = 0;
+  enum state cur_state = STATE_NO_RECT;
+  enum hover cur_hover = HOVER_OUTSIDE;
   Imlib_Image im = NULL;
   static int xfd = 0;
   static int fdsize = 0;
   XEvent ev;
   fd_set fdset;
-  int count = 0, done = 0;
-  int rx = 0, ry = 0, rw = 0, rh = 0, btn_pressed = 0;
-  int rect_x = 0, rect_y = 0, rect_w = 0, rect_h = 0;
-  Cursor cursor, cursor_nw, cursor_ne, cursor_se, cursor_sw;
+  int count = 0;
+  int rx = 0, ry = 0, rw = 0, rh = 0;
+  int rect_x = 0, rect_y = 0, rect_w = 0, rect_h = 0,
+    orig_rect_x = 0, orig_rect_y = 0, diff_x, diff_y, new_rect_x, new_rect_y;
+  Cursor cursor, cursor_nw, cursor_ne, cursor_se, cursor_sw, cursor_move;
   Window target = None;
   GC gc;
   XGCValues gcval;
+  char buf[32];
+  KeySym ksym;
+  unsigned int ev_mask = PointerMotionMask | ButtonPressMask |
+    ButtonReleaseMask;
+  XWindowAttributes root_attr;
+  
+  /* screen parameters */
+  if (opt.resize) {
+    if (ScreenCount(disp) != 1) {
+      fprintf(stderr, "sorry: cannot resize/move a rectangle with multiple screens\n");
+      exit(5);
+    }
+    XGetWindowAttributes(disp, root, &root_attr);
+  }
 
   xfd = ConnectionNumber(disp);
   fdsize = xfd + 1;
@@ -237,6 +312,7 @@ scrot_sel_and_grab_image(void)
   cursor_ne = XCreateFontCursor(disp, XC_ur_angle);
   cursor_se = XCreateFontCursor(disp, XC_lr_angle);
   cursor_sw = XCreateFontCursor(disp, XC_ll_angle);
+  cursor_move = XCreateFontCursor(disp, XC_fleur);
 
   gcval.foreground = XWhitePixel(disp, 0);
   gcval.function = GXxor;
@@ -250,8 +326,7 @@ scrot_sel_and_grab_image(void)
               &gcval);
 
   if ((XGrabPointer
-       (disp, root, False,
-        ButtonMotionMask | ButtonPressMask | ButtonReleaseMask, GrabModeAsync,
+       (disp, root, False, ev_mask, GrabModeAsync,
         GrabModeAsync, root, cursor, CurrentTime) != GrabSuccess))
     gib_eprintf("couldn't grab pointer:");
 
@@ -259,80 +334,278 @@ scrot_sel_and_grab_image(void)
        (disp, root, False, GrabModeAsync, GrabModeAsync,
         CurrentTime) != GrabSuccess))
     gib_eprintf("couldn't grab keyboard:");
+    
+    
 
   while (1) {
     /* handle events here */
-    while (!done && XPending(disp)) {
+    while (cur_state != STATE_DONE && cur_state != STATE_CANCELED &&
+        XPending(disp)) {
       XNextEvent(disp, &ev);
       switch (ev.type) {
-        case MotionNotify:
-          if (btn_pressed) {
-            if (rect_w) {
-              /* re-draw the last rect to clear it */
-              XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-            }
-
-            rect_x = rx;
-            rect_y = ry;
-            rect_w = ev.xmotion.x - rect_x;
-            rect_h = ev.xmotion.y - rect_y;
-
-            /* Change the cursor to show we're selecting a region */
-            if (rect_w < 0 && rect_h < 0)
-              XChangeActivePointerGrab(disp,
-                                       ButtonMotionMask | ButtonReleaseMask,
-                                       cursor_nw, CurrentTime);
-            else if (rect_w < 0 && rect_h > 0)
-              XChangeActivePointerGrab(disp,
-                                       ButtonMotionMask | ButtonReleaseMask,
-                                       cursor_sw, CurrentTime);
-            else if (rect_w > 0 && rect_h < 0)
-              XChangeActivePointerGrab(disp,
-                                       ButtonMotionMask | ButtonReleaseMask,
-                                       cursor_ne, CurrentTime);
-            else if (rect_w > 0 && rect_h > 0)
-              XChangeActivePointerGrab(disp,
-                                       ButtonMotionMask | ButtonReleaseMask,
-                                       cursor_se, CurrentTime);
-
-            if (rect_w < 0) {
-              rect_x += rect_w;
-              rect_w = 0 - rect_w;
-            }
-            if (rect_h < 0) {
-              rect_y += rect_h;
-              rect_h = 0 - rect_h;
-            }
-            /* draw rectangle */
+      case MotionNotify:
+        switch (cur_state) {
+        case STATE_DRAWING_RECT:
+          if (rect_is_drawn) {
+            /* re-draw the last rect to clear it */
             XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
-            XFlush(disp);
+          }
+
+          rect_x = rx;
+          rect_y = ry;
+          rect_w = ev.xmotion.x - rect_x;
+          rect_h = ev.xmotion.y - rect_y;
+
+          /* Change the cursor to show we're selecting a region */
+          if (rect_w < 0 && rect_h < 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+          else if (rect_w < 0 && rect_h > 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+          else if (rect_w > 0 && rect_h < 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+          else if (rect_w > 0 && rect_h > 0)
+            XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+
+          if (rect_w < 0) {
+            rect_x += rect_w;
+            rect_w = 0 - rect_w;
+          }
+          if (rect_h < 0) {
+            rect_y += rect_h;
+            rect_h = 0 - rect_h;
+          }
+          
+          /* draw rectangle */
+          if (rect_w > 1 && rect_h > 1) {
+            XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+            rect_is_drawn = 1;
+          } else {
+            rect_is_drawn = 0;
           }
           break;
-        case ButtonPress:
-          btn_pressed = 1;
-          rx = ev.xbutton.x;
-          ry = ev.xbutton.y;
-          target =
-            scrot_get_window(disp, ev.xbutton.subwindow, ev.xbutton.x,
-                             ev.xbutton.y);
-          if (target == None)
-            target = root;
+          
+        case STATE_MOVING_RECT:          
+          /* remove old rectangle */
+          XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
+          
+          /* new parameters */
+          diff_x = ev.xmotion.x - rx;
+          diff_y = ev.xmotion.y - ry;
+          new_rect_x = orig_rect_x + diff_x;
+          new_rect_y = orig_rect_y + diff_y;
+          if (!rect_out_of_screen(&root_attr, new_rect_x, new_rect_y,
+              rect_w, rect_h)) {
+            /* update rectangle */
+            rect_x = new_rect_x;
+            rect_y = new_rect_y;
+          }
+          XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
           break;
-        case ButtonRelease:
-          done = 1;
+        
+        case STATE_RECT_DRAWN:
+          /* update hover region */
+          if (!rect_is_drawn) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          }
+          
+          /* try corners first, then default to inside, then outside;
+             only allow to resize if rectangle si large enough to do so */
+          if (rect_w > (RESIZE_HANDLE_SZ_PX * 2 + 5) &&
+            rect_h > (RESIZE_HANDLE_SZ_PX * 2 + 5)) {
+            if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_nw, CurrentTime);
+              cur_hover = HOVER_NW;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x + rect_w - RESIZE_HANDLE_SZ_PX,
+                rect_y, RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_ne, CurrentTime);
+              cur_hover = HOVER_NE;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x, rect_y + rect_h - RESIZE_HANDLE_SZ_PX,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_sw, CurrentTime);
+              cur_hover = HOVER_SW;
+              break;
+            } else if (overlaps(ev.xmotion.x, ev.xmotion.y,
+                rect_x + rect_w - RESIZE_HANDLE_SZ_PX,
+                rect_y + rect_h - RESIZE_HANDLE_SZ_PX,
+                RESIZE_HANDLE_SZ_PX, RESIZE_HANDLE_SZ_PX)) {
+              XChangeActivePointerGrab(disp, ev_mask, cursor_se, CurrentTime);
+              cur_hover = HOVER_SE;
+              break;
+            }
+          }
+					if (overlaps(ev.xmotion.x, ev.xmotion.y, rect_x, rect_y, rect_w, rect_h)) {
+            XChangeActivePointerGrab(disp, ev_mask, cursor_move, CurrentTime);
+            cur_hover = HOVER_INSIDE;
+          } else {
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+            cur_hover = HOVER_OUTSIDE;
+          }
           break;
-        case KeyPress:
-          fprintf(stderr, "Key was pressed, aborting shot\n");
-          done = 2;
-          break;
-        case KeyRelease:
-          /* ignore */
-          break;
+        
         default:
           break;
+        }
+        XFlush(disp);
+        break;
+        
+      case ButtonPress:
+        rx = ev.xbutton.x;
+        ry = ev.xbutton.y;
+        switch (cur_state) {
+        case STATE_NO_RECT:
+          cur_state = STATE_DRAWING_RECT;
+          break;
+          
+        case STATE_RECT_DRAWN:
+          switch (cur_hover) {
+          case HOVER_INSIDE:
+            orig_rect_x = rect_x;
+            orig_rect_y = rect_y;
+            cur_state = STATE_MOVING_RECT;
+            break;
+            
+          case HOVER_OUTSIDE:
+            cur_state = STATE_DRAWING_RECT;
+            break;
+            
+          case HOVER_SE:
+            /* make the original point NW */
+            rx = rect_x;
+            ry = rect_y;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+          
+          case HOVER_SW:
+            /* make the original point NE */
+            rx = rect_x + rect_w;
+            ry = rect_y;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+            
+          case HOVER_NE:
+            /* make the original point SW */
+            rx = rect_x;
+            ry = rect_y + rect_h;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+            
+          case HOVER_NW:
+            /* make the original point SE */
+            rx = rect_x + rect_w;
+            ry = rect_y + rect_h;
+            
+            /* back to draw mode */
+            cur_state = STATE_DRAWING_RECT;
+            break;
+          
+          default:
+            break;
+          }
+          break;
+          
+        default:
+          break;
+        }
+        target =
+          scrot_get_window(disp, ev.xbutton.subwindow, ev.xbutton.x,
+                           ev.xbutton.y);
+        if (target == None)
+          target = root;
+        break;
+        
+      case ButtonRelease:
+        if (!opt.resize) {
+          if (cur_state == STATE_DRAWING_RECT) {
+            cur_state = STATE_DONE;
+          }
+          break;
+        }
+        switch (cur_state) {
+        case STATE_DRAWING_RECT:
+        case STATE_MOVING_RECT:
+          cur_state = STATE_RECT_DRAWN;
+          break;
+          
+        default:
+          break;
+        }
+        break;
+        
+      case KeyPress:
+        XLookupString(&ev.xkey, buf, sizeof buf, &ksym, 0);
+        if(IsKeypadKey(ksym))
+           if(ksym == XK_KP_Enter)
+             ksym = XK_Return;
+        switch (ksym) {
+        case XK_Escape:
+          cur_state = STATE_CANCELED;
+          break;
+        
+        case XK_Return:
+          /* terminate as soon as we have a drawn rectangle */
+          if (rect_is_drawn) {
+            cur_state = STATE_DONE;
+          } else {
+            cur_state = STATE_CANCELED;
+          }
+          break;
+        }
+        
+        /* move rectangle if drawn */
+        if (cur_state == STATE_RECT_DRAWN && rect_is_drawn) {
+          if (ksym == XK_Left || ksym == XK_Right ||
+              ksym == XK_Down || ksym == XK_Up) {
+            cur_hover = HOVER_OUTSIDE;
+            XChangeActivePointerGrab(disp, ev_mask, cursor, CurrentTime);
+          }
+          switch (ksym) {
+          case XK_Left:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, -KEYS_MOVE_RECT_STEP_PX, 0);
+            break;
+            
+          case XK_Right:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, +KEYS_MOVE_RECT_STEP_PX, 0);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          
+          case XK_Up:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, 0, -KEYS_MOVE_RECT_STEP_PX);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+          
+          case XK_Down:
+            try_move_rect(&gc, &root_attr, &rect_x, &rect_y,
+              rect_w, rect_h, 0, +KEYS_MOVE_RECT_STEP_PX);
+            cur_hover = HOVER_OUTSIDE;
+            break;
+            
+          default:
+            break;
+          }
+        }
+        break;
+        
+      default:
+        break;
       }
     }
-    if (done)
+    if (cur_state == STATE_DONE || cur_state == STATE_CANCELED)
       break;
 
     /* now block some */
@@ -344,7 +617,7 @@ scrot_sel_and_grab_image(void)
         && ((errno == ENOMEM) || (errno == EINVAL) || (errno == EBADF)))
       gib_eprintf("Connection to X display lost");
   }
-  if (rect_w) {
+  if (rect_is_drawn) {
     XDrawRectangle(disp, root, gc, rect_x, rect_y, rect_w, rect_h);
     XFlush(disp);
   }
@@ -355,24 +628,13 @@ scrot_sel_and_grab_image(void)
   XSync(disp, True);
 
 
-  if (done < 2) {
+  if (cur_state == STATE_DONE && rect_is_drawn) {
     scrot_do_delay();
 
     Window client_window = None;
 
     if (rect_w > 5) {
       /* if a rect has been drawn, it's an area selection */
-      rw = ev.xbutton.x - rx;
-      rh = ev.xbutton.y - ry;
-
-      if (rw < 0) {
-        rx += rw;
-        rw = 0 - rw;
-      }
-      if (rh < 0) {
-        ry += rh;
-        rh = 0 - rh;
-      }
     } else {
       Window child;
       XWindowAttributes attr;
@@ -382,13 +644,13 @@ scrot_sel_and_grab_image(void)
       if (!scrot_get_geometry(target, &client_window, &rx, &ry, &rw, &rh))
         return NULL;
     }
-    scrot_nice_clip(&rx, &ry, &rw, &rh);
+    scrot_nice_clip(&rect_x, &rect_y, &rect_w, &rect_h);
 
     XBell(disp, 0);
     if(opt.alpha)
-      im = scrot_grab_transparent_shot(disp, client_window, rx, ry, rw, rh);
+      im = scrot_grab_transparent_shot(disp, client_window, rect_x, rect_y, rect_w, rect_h);
     else
-      im = gib_imlib_create_image_from_drawable(root, 0, rx, ry, rw, rh, 1);
+      im = gib_imlib_create_image_from_drawable(root, 0, rect_x, rect_y, rect_w, rect_h, 1);
   }
   return im;
 }

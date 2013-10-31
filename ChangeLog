@@ -1,6 +1,13 @@
 Wed Oct 30 09:50:00 GMT 2013 Salvatore La Bua <slabua@gmail.com>
   * Anonymous patch from Debian: -z, --silent parameter to prevent beeping.
 
+Thu Jul  4 17:46:11 EDT 2013  Philippe Proulx <eeppeliteloop@gmail.com>
+
+  * Add -r, --resize option that may be used in combination with
+    -s to move/resize the rectangle selection with the mouse and
+    keyboard. -s acts as before when not using -r.
+  * Fix dirty pixels bug when drawing a selection rectangle.
+
 Sun Aug 15 22:48:11 GMT 2010  Patryk Obara <patryk.obara@gmail.com>
   * Anonymous patches from Debian: man fixes and -u, --focused
     parameter to capture focused window.
