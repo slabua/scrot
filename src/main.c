@@ -655,6 +655,19 @@ scrot_sel_and_grab_image(void)
   return im;
 }
 
+int
+min(int a,
+    int b)
+{
+  return a < b ? a : b;
+}
+
+int
+max(int a,
+    int b)
+{
+  return a > b ? a : b;
+}
 
 /* clip rectangle nicely */
 void
@@ -671,6 +684,14 @@ scrot_nice_clip(int *rx,
     *rh += *ry;
     *ry = 0;
   }
+
+  *rx += max(opt.geometry.x, 0);
+  *ry += max(opt.geometry.y, 0);
+  if (opt.geometry.w > 0)
+    *rw = min(opt.geometry.w, *rw);
+  if (opt.geometry.h > 0)
+    *rh = min(opt.geometry.h, *rh);
+
   if ((*rx + *rw) > scr->width)
     *rw = scr->width - *rx;
   if ((*ry + *rh) > scr->height)
