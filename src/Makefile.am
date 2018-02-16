@@ -8,6 +8,6 @@ $(X_CFLAGS) -I$(prefix)/include -I$(includedir) -I. \
 LIBOBJS = @LIBOBJS@
 
 bin_PROGRAMS      = scrot
-scrot_SOURCES       = main.c getopt.c getopt1.c getopt.h scrot.h \
-options.c options.h debug.h imlib.c structs.h
+scrot_SOURCES       = main.c scrot.h options.c options.h \
+debug.h imlib.c structs.h
 scrot_LDADD         = -lX11 @GIBLIB_LIBS@
