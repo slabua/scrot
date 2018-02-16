@@ -46,7 +46,7 @@ init_parse_options(int argc, char **argv)
 static void
 scrot_parse_option_array(int argc, char **argv)
 {
-   static char stropts[] = "abcd:e:hmnqw:g:st:uv+:";
+   static char stropts[] = "abcd:e:hmnq:w:g:st:uv+:";
    static struct option lopts[] = {
       /* actions */
       {"help", 0, 0, 'h'},                  /* okay */
